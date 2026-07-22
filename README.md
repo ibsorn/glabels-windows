@@ -88,6 +88,10 @@ release in your own fork. Nothing besides a GitHub account is required.
 Locally, follow the
 [upstream Windows build instructions](https://github.com/jimevins/glabels-qt/blob/master/docs/BUILD-INSTRUCTIONS-WINDOWS.md).
 
+Note that the *process* is reproducible, not the bytes: MSVC and NSIS embed timestamps, so
+rebuilding the same commit gives you a working, equivalent binary with a different SHA-256.
+The published sums identify a specific release, they are not a build fingerprint.
+
 Any local fixes needed to build a given upstream revision live in [`patches/`](patches/)
 as plain `git apply` patches, each with a header explaining why it exists and what would
 make it removable. The packaging metadata (installer name, icons, file association) lives
