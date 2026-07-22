@@ -173,7 +173,11 @@ jobs:
                      Select-Object -First 1
           if (-not $zintLib) { throw "no zint library found in the vcpkg tree" }
           Write-Host "zint library: $($zintLib.FullName)"
-          cmake -S src -B build -G "Visual Studio 17 2022" -A x64 `
+          # The build tree lives inside the source checkout on purpose: some of
+          # the upstream unit-test fixtures reference their data with paths
+          # relative to the test working directory, and they only resolve when
+          # the build directory sits directly under the source root.
+          cmake -S src -B src/build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
             -DCMAKE_BUILD_TYPE=Release `
@@ -201,18 +205,18 @@ jobs:
 
       - name: Build
         shell: pwsh
-        run: cmake --build build --config Release --parallel
+        run: cmake --build src/build --config Release --parallel
 
       - name: Unit tests
         shell: pwsh
-        working-directory: build
+        working-directory: src/build
         env:
           QT_ASSUME_STDERR_HAS_CONSOLE: 1
         run: ctest --build-config Release --output-on-failure
 
       - name: Stage install tree
         shell: pwsh
-        run: cmake --install build --config Release --prefix "$env:GITHUB_WORKSPACE/stage"
+        run: cmake --install src/build --config Release --prefix "$env:GITHUB_WORKSPACE/stage"
 
       - name: Smoke test the staged build
         shell: pwsh
@@ -239,26 +243,27 @@ jobs:
               -e "s|@GLABELS_SHA@|${GLABELS_SHA}|g" \
               -e "s|@GLABELS_DATE@|${GLABELS_DATE}|g" \
               -e "s|@REPO_URL@|${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}|g" \
-              packaging/cpack-overrides.cmake.in >> build/CPackConfig.cmake
-          echo "Appended packaging overrides to build/CPackConfig.cmake"
+              packaging/cpack-overrides.cmake.in >> src/build/CPackConfig.cmake
+          echo "Appended packaging overrides to src/build/CPackConfig.cmake"
 
       - name: Package (installer + portable ZIP)
         shell: pwsh
-        working-directory: build
+        working-directory: src/build
         run: |
           $ErrorActionPreference = 'Stop'
-          $base = "gLabels-$env:GLABELS_VERSION-win64"
-          cpack -C Release -G NSIS -D CPACK_PACKAGE_FILE_NAME="$base-setup"
-          if ($LASTEXITCODE -ne 0) { throw "NSIS packaging failed" }
-          cpack -C Release -G ZIP  -D CPACK_PACKAGE_FILE_NAME="$base-portable"
-          if ($LASTEXITCODE -ne 0) { throw "ZIP packaging failed" }
+          cpack -C Release -G "NSIS;ZIP" --verbose
+          if ($LASTEXITCODE -ne 0) { throw "packaging failed" }
 
       - name: Collect artifacts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $base = "gLabels-$env:GLABELS_VERSION-win64"
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item build\*-setup.exe, build\*-portable.zip dist\
+          # The two generators differ only by extension; give them names that
+          # say what they are before handing them to users.
+          Copy-Item "src\build\$base.exe" "dist\$base-setup.exe"
+          Copy-Item "src\build\$base.zip" "dist\$base-portable.zip"
           Get-ChildItem dist | ForEach-Object {
             $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$h  $($_.Name)"

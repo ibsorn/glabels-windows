@@ -7,6 +7,7 @@
 # --- Naming -----------------------------------------------------------------
 set(CPACK_PACKAGE_NAME "gLabels")
 set(CPACK_PACKAGE_VERSION "@GLABELS_VERSION@")
+set(CPACK_PACKAGE_FILE_NAME "gLabels-@GLABELS_VERSION@-win64")
 set(CPACK_PACKAGE_VERSION_TWEAK "")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "gLabels 4")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "gLabels 4 Label Designer")
