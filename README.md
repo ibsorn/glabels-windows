@@ -89,9 +89,9 @@ Locally, follow the
 [upstream Windows build instructions](https://github.com/jimevins/glabels-qt/blob/master/docs/BUILD-INSTRUCTIONS-WINDOWS.md).
 
 Any local fixes needed to build a given upstream revision live in [`patches/`](patches/)
-as plain `git apply` patches, and the packaging metadata (installer name, icons, file
-association) lives in [`packaging/`](packaging/). At the time of writing, no patches are
-needed: upstream builds cleanly with MSVC.
+as plain `git apply` patches, each with a header explaining why it exists and what would
+make it removable. The packaging metadata (installer name, icons, file association) lives
+in [`packaging/`](packaging/). No gLabels source code is modified beyond those patches.
 
 ## Bugs
 

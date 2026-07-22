@@ -1,0 +1,3 @@
+*.patch text eol=lf
+*.yml text eol=lf
+*.cmake.in text eol=lf

@@ -1,0 +1,45 @@
+Do not run lupdate during the build.
+
+translations/CMakeLists.txt regenerates glabels_C.ts and templates_C.ts with
+lupdate on every build.  That is a maintainer task, not something a packaging
+build needs: both .ts files are committed upstream, and lrelease alone is
+enough to produce the .qm files that get installed.
+
+It also breaks the build here.  Qt6's lupdate is the clang-based parser and
+needs libclang.dll, which is not part of the qttools archive that aqtinstall
+fetches, so lupdate.exe dies with STATUS_DLL_NOT_FOUND (0xC0000135) and
+MSBuild reports a bare error MSB8066.
+
+Switching the two C-locale files to qt6_add_translation drops lupdate (and the
+XmlStrings string-extraction step that only fed it) from the build.  The other
+84 languages already went through qt6_add_translation.
+
+Removable once upstream stops running lupdate as part of the default build.
+
+diff --git a/translations/CMakeLists.txt b/translations/CMakeLists.txt
+index d5fe9f1..6225fdf 100644
+--- a/translations/CMakeLists.txt
++++ b/translations/CMakeLists.txt
+@@ -20,19 +20,13 @@ expand_linguas (GLABELS_TS_FILES "LINGUAS" "glabels")
+ expand_linguas (TEMPLATES_TS_FILES "LINGUAS" "templates")
+ 
+ #
+-# Update strings in C-locale translation files (lupdate+lrelease)
++# Compile the C-locale translation files (lrelease only)
+ #
+-qt6_create_translation (glabels_C_qm_file
+-  ${CMAKE_SOURCE_DIR}/glabels
+-  ${CMAKE_SOURCE_DIR}/model
+-  ${CMAKE_SOURCE_DIR}/backends
++qt6_add_translation (glabels_C_qm_file
+   glabels_C.ts
+-  OPTIONS -no-obsolete -locations none
+ )
+-qt6_create_translation (templates_C_qm_file
+-  ${CMAKE_CURRENT_BINARY_DIR}/template-strings.hpp
++qt6_add_translation (templates_C_qm_file
+   templates_C.ts
+-  OPTIONS -no-obsolete -locations none
+ )
+ 
+ #

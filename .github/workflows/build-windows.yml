@@ -153,15 +153,51 @@ jobs:
           choco install nsis --no-progress -y
           "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
+      - name: Show Qt tooling
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          # Diagnostics only: which Qt tools aqtinstall actually delivered.
+          Write-Host "QT_ROOT_DIR = $env:QT_ROOT_DIR"
+          (Get-ChildItem "$env:QT_ROOT_DIR\bin" -Filter *.exe).Name -join ' '
+          "libclang present: " + [bool](Get-ChildItem "$env:QT_ROOT_DIR\bin" -Filter libclang*.dll)
+          & "$env:QT_ROOT_DIR\bin\lrelease.exe" -version
+
       - name: Configure
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          # zint's own CMake names its Windows static library "zint-static.lib",
+          # which upstream's FindLibZint.cmake does not look for; point it there.
+          $zintLib = Get-ChildItem "$env:GITHUB_WORKSPACE\vcpkg\installed\$env:VCPKG_TRIPLET\lib\zint*.lib" |
+                     Select-Object -First 1
+          if (-not $zintLib) { throw "no zint library found in the vcpkg tree" }
+          Write-Host "zint library: $($zintLib.FullName)"
           cmake -S src -B build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
             -DCMAKE_BUILD_TYPE=Release `
+            -DLIBZINT_LIBRARY="$($zintLib.FullName)" `
             -DLIBZINT_VERSION="$env:ZINT_VERSION_NUM" `
-            -DLIBZINT_VERSION_STRING="$env:ZINT_VERSION_STRING"
+            -DLIBZINT_VERSION_STRING="$env:ZINT_VERSION_STRING" |
+            Tee-Object -FilePath configure.log
+          if ($LASTEXITCODE -ne 0) { throw "cmake configure failed" }
+
+      - name: Fail if an optional dependency went missing
+        shell: pwsh
+        run: |
+          # zlib, qrencode and zint are "optional" upstream, but a build without
+          # barcodes or compressed-project support is not worth publishing, and
+          # a silently degraded release is worse than a red build.
+          $ok = $true
+          foreach ($dep in 'zlib', 'qrencode', 'libzint') {
+            $line = Select-String -Path configure.log -Pattern "^-- $dep \(optional\)\.*\s*(.+)$" |
+                    Select-Object -First 1
+            $found = if ($line) { $line.Matches[0].Groups[1].Value.Trim() } else { '<no summary line>' }
+            Write-Host "$dep -> $found"
+            if ($found -eq 'No.' -or $found -eq '<no summary line>') { $ok = $false }
+          }
+          if (-not $ok) { throw "an expected dependency was not detected" }
 
       - name: Build
         shell: pwsh
