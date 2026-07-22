@@ -1,0 +1,286 @@
+name: Build gLabels for Windows
+
+# Builds gLabels 4 (glabels-qt) for 64-bit Windows straight from upstream
+# sources, and packages it as an NSIS installer plus a portable ZIP.
+#
+#   * toolchain : MSVC (Visual Studio 2022) -- windeployqt runs automatically
+#   * Qt        : installed with aqtinstall (qtbase qtsvg qttools qttranslations)
+#   * extras    : zlib, libqrencode and zint, built statically with vcpkg
+#
+# Everything that ends up in a release is produced by this file alone, so the
+# published binaries can be reproduced by anyone with a fork and one click.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: 'Upstream glabels-qt ref (branch, tag or commit)'
+        required: false
+        default: 'master'
+      publish_release:
+        description: 'Publish a GitHub Release with the artifacts'
+        type: boolean
+        required: false
+        default: false
+  push:
+    branches: [ main ]
+    paths-ignore: [ '**.md', 'docs/**' ]
+  schedule:
+    # Weekly snapshot, Mondays at 04:00 UTC
+    - cron: '0 4 * * 1'
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM_REPO: jimevins/glabels-qt
+  QT_VERSION: '6.8.3'
+  QT_ARCH: win64_msvc2022_64
+  VCPKG_TRIPLET: x64-windows-static-md
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (MSVC x64)
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout packaging repository
+        uses: actions/checkout@v4
+
+      - name: Checkout gLabels sources
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ github.event.inputs.upstream_ref || 'master' }}
+          path: src
+          # Full history: the upstream CMakeLists derives the version number
+          # from the commit count, and a shallow clone yields "Unkonwn".
+          fetch-depth: 0
+
+      - name: Determine version
+        shell: bash
+        working-directory: src
+        run: |
+          set -euo pipefail
+          # The upstream build reads `git symbolic-ref --short HEAD`, so a
+          # detached HEAD (what actions/checkout leaves behind for tags and
+          # SHAs) has to be turned back into a named branch.
+          git checkout -B master
+          count=$(git rev-list --count master)
+          sha=$(git rev-parse --short=7 HEAD)
+          date=$(git show -s --format=%cs HEAD)
+          {
+            echo "GLABELS_VERSION=3.99-master${count}"
+            echo "GLABELS_SHA=${sha}"
+            echo "GLABELS_DATE=${date}"
+          } >> "$GITHUB_ENV"
+          echo "Building 3.99-master${count} (${sha}, ${date})"
+
+      - name: Apply local patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          patches=(patches/*.patch)
+          if [ ${#patches[@]} -eq 0 ]; then
+            echo "No patches to apply."
+            exit 0
+          fi
+          for p in "${patches[@]}"; do
+            echo "==> $p"
+            git -C src apply --verbose "${GITHUB_WORKSPACE}/${p}"
+          done
+
+      - name: Clone vcpkg
+        shell: bash
+        run: git clone --depth 1 https://github.com/microsoft/vcpkg.git
+
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/downloads
+          key: vcpkg-${{ env.VCPKG_TRIPLET }}-${{ hashFiles('.github/workflows/build-windows.yml') }}
+          restore-keys: |
+            vcpkg-${{ env.VCPKG_TRIPLET }}-
+
+      - name: Build optional dependencies (zlib, qrencode, zint)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          ./vcpkg/vcpkg install --triplet "${VCPKG_TRIPLET}" \
+            pkgconf zlib libqrencode zint
+
+      - name: Detect zint version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Since zint 2.10 the version macros are gone from the public header,
+          # and FindLibZint.cmake then shells out to a `zint` executable that a
+          # library-only vcpkg install does not provide.  Feed the version in
+          # from vcpkg's own metadata instead.
+          line=$(./vcpkg/vcpkg list zint | head -n 1)
+          ver=$(echo "$line" | awk '{print $2}' | sed 's/#.*//')
+          maj=${ver%%.*}; rest=${ver#*.}; min=${rest%%.*}; mic=${rest#*.}; mic=${mic%%.*}
+          case "$mic" in ''|*[!0-9]*) mic=0 ;; esac
+          echo "zint ${ver} -> $((maj * 10000 + min * 100 + mic))"
+          {
+            echo "ZINT_VERSION_STRING=${ver}"
+            echo "ZINT_VERSION_NUM=$((maj * 10000 + min * 100 + mic))"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Qt ${{ env.QT_VERSION }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: ${{ env.QT_ARCH }}
+          # qttools is required: find_package(Qt6 ... LinguistTools) is not
+          # optional and configuration dies without it.
+          archives: 'qtbase qtsvg qttools qttranslations'
+          cache: true
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis --no-progress -y
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S src -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DLIBZINT_VERSION="$env:ZINT_VERSION_NUM" `
+            -DLIBZINT_VERSION_STRING="$env:ZINT_VERSION_STRING"
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release --parallel
+
+      - name: Unit tests
+        shell: pwsh
+        working-directory: build
+        env:
+          QT_ASSUME_STDERR_HAS_CONSOLE: 1
+        run: ctest --build-config Release --output-on-failure
+
+      - name: Stage install tree
+        shell: pwsh
+        run: cmake --install build --config Release --prefix "$env:GITHUB_WORKSPACE/stage"
+
+      - name: Smoke test the staged build
+        shell: pwsh
+        env:
+          QT_ASSUME_STDERR_HAS_CONSOLE: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bin = "$env:GITHUB_WORKSPACE\stage\bin"
+          # Runs against the deployed tree only: proves windeployqt shipped every
+          # DLL and that the templates/translations are found next to the binary.
+          & "$bin\glabels-batch-qt.exe" --Version
+          & "$bin\glabels-batch-qt.exe" -o "$env:GITHUB_WORKSPACE\smoke.pdf" `
+            "$env:GITHUB_WORKSPACE\src\test-data\simple-shapes.glabels"
+          if (-not (Test-Path "$env:GITHUB_WORKSPACE\smoke.pdf")) {
+            throw "smoke test produced no PDF"
+          }
+          Write-Host "Smoke test OK"
+
+      - name: Configure packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -e "s|@GLABELS_VERSION@|${GLABELS_VERSION}|g" \
+              -e "s|@GLABELS_SHA@|${GLABELS_SHA}|g" \
+              -e "s|@GLABELS_DATE@|${GLABELS_DATE}|g" \
+              -e "s|@REPO_URL@|${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}|g" \
+              packaging/cpack-overrides.cmake.in >> build/CPackConfig.cmake
+          echo "Appended packaging overrides to build/CPackConfig.cmake"
+
+      - name: Package (installer + portable ZIP)
+        shell: pwsh
+        working-directory: build
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $base = "gLabels-$env:GLABELS_VERSION-win64"
+          cpack -C Release -G NSIS -D CPACK_PACKAGE_FILE_NAME="$base-setup"
+          if ($LASTEXITCODE -ne 0) { throw "NSIS packaging failed" }
+          cpack -C Release -G ZIP  -D CPACK_PACKAGE_FILE_NAME="$base-portable"
+          if ($LASTEXITCODE -ne 0) { throw "ZIP packaging failed" }
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build\*-setup.exe, build\*-portable.zip dist\
+          Get-ChildItem dist | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$h  $($_.Name)"
+          } | Set-Content dist\SHA256SUMS.txt -Encoding ascii
+          Get-ChildItem dist | Format-Table Name, Length
+          Get-Content dist\SHA256SUMS.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gLabels-${{ env.GLABELS_VERSION }}-win64
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish release
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: win-${{ env.GLABELS_VERSION }}
+          name: gLabels 4 for Windows — ${{ env.GLABELS_VERSION }}
+          body: |
+            **gLabels 4 (`glabels-qt`) for 64-bit Windows**, built automatically from upstream
+            [`${{ env.UPSTREAM_REPO }}`](https://github.com/${{ env.UPSTREAM_REPO }})
+            commit [`${{ env.GLABELS_SHA }}`](https://github.com/${{ env.UPSTREAM_REPO }}/commit/${{ env.GLABELS_SHA }})
+            (${{ env.GLABELS_DATE }}).
+
+            ### Downloads
+
+            | File | Use it if… |
+            |:--|:--|
+            | `gLabels-${{ env.GLABELS_VERSION }}-win64-setup.exe` | You want a normal installation with Start-menu and desktop shortcuts and `.glabels` file association. |
+            | `gLabels-${{ env.GLABELS_VERSION }}-win64-portable.zip` | You want to run it from a USB stick or without installing. Unzip and run `bin\glabels-qt.exe`. |
+            | `SHA256SUMS.txt` | You want to verify the downloads. |
+
+            ### What is in the build
+
+            * Qt ${{ env.QT_VERSION }} (MSVC 2022, 64-bit), deployed with `windeployqt`
+            * Barcode backends: built-in *glbarcode++*, **zint** and **libqrencode**
+            * Compressed (`.glabels`) file support via zlib
+            * All upstream label templates and translations
+
+            ### Notes
+
+            gLabels 4 is still under development upstream, so this is a snapshot of the
+            `master` branch rather than a finished 4.0 release. Unit tests and a
+            render smoke test pass on every build.
+
+            This is a community build. It is **not** produced or endorsed by the gLabels
+            authors — please report packaging problems here and application bugs
+            [upstream](https://github.com/${{ env.UPSTREAM_REPO }}/issues).
+
+            Verify a download with PowerShell:
+
+            ```powershell
+            Get-FileHash .\gLabels-${{ env.GLABELS_VERSION }}-win64-setup.exe -Algorithm SHA256
+            ```
+          files: dist/*
+          draft: false
+          prerelease: false
+          make_latest: true
