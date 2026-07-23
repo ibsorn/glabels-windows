@@ -10,6 +10,14 @@ set(CPACK_PACKAGE_VERSION "@GLABELS_VERSION@")
 set(CPACK_PACKAGE_FILE_NAME "gLabels-@GLABELS_VERSION@-win64")
 set(CPACK_PACKAGE_VERSION_TWEAK "")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "gLabels 4")
+
+# Uninstall registry key.  CPack derives this from CPACK_PACKAGE_INSTALL_DIRECTORY
+# at include(CPack) time, which is before these overrides are read, so it would
+# otherwise be "glabels 3.99.0" - tied to the upstream project version.  Pin it to
+# a value that does not move between snapshots: it is what "uninstall the previous
+# version first" matches on, and what winget records as the ProductCode.  Changing
+# it later would orphan every existing installation.
+set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "gLabels 4")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "gLabels 4 Label Designer")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://glabels.org")
 set(CPACK_PACKAGE_VENDOR "glabels.org")
@@ -23,6 +31,10 @@ set(CPACK_NSIS_URL_INFO_ABOUT "@REPO_URL@")
 set(CPACK_NSIS_CONTACT "@REPO_URL@/issues")
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
 set(CPACK_NSIS_MANIFEST_DPI_AWARE ON)
+
+# Offer to launch gLabels from the last page of the installer.
+# CPack expands this to "$INSTDIR\${CPACK_NSIS_EXECUTABLES_DIRECTORY}\<value>".
+set(CPACK_NSIS_MUI_FINISHPAGE_RUN "glabels-qt.exe")
 
 # Register the .glabels project files with the installed application.
 # NSIS single-quoted strings are used so that only backslashes need escaping
