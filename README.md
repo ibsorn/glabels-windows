@@ -45,7 +45,7 @@ Grab the files from the [**latest release**](https://github.com/ibsorn/glabels-w
 `winget install ibsorn.gLabels` will work. Not before.
 
 **Chocolatey** — [packaged and tested](chocolatey/), awaiting upload and moderation. Once
-accepted, `choco install glabels` will work.
+accepted, `choco install glabels-qt` will work.
 
 **Scoop** — [not eligible yet](scoop/). The Extras bucket requires the *latest stable
 version* of a package, and gLabels 4 has no stable release. The manifest is written and

@@ -1,7 +1,13 @@
 # Chocolatey package
 
-Source for the `glabels` package on the
-[Chocolatey Community Repository](https://community.chocolatey.org/packages/glabels).
+Source for the `glabels-qt` package on the
+[Chocolatey Community Repository](https://community.chocolatey.org/packages/glabels-qt).
+
+> **Why not the id `glabels`?** It is taken. An unrelated 2020 submission holds it; its only
+> version was rejected in April 2020 and it has been dormant since. Pushing to an id owned by
+> another account returns a bare `403 Forbidden`, which is easy to mistake for a bad API key.
+> Reclaiming it would mean going through Chocolatey's package triage process with the site
+> admins; `glabels-qt` matches the upstream project's own name and needed no waiting.
 
 The package **downloads** the installer from this repository's GitHub release and verifies
 it against the SHA-256 in [`tools/chocolateyinstall.ps1`](tools/chocolateyinstall.ps1);
@@ -17,7 +23,7 @@ So `authors` credits the gLabels authors and `owners` is the packager. There is 
 ## Publishing a new version
 
 1. Update `version`, the release URL and `checksum64` in
-   [`glabels.nuspec`](glabels.nuspec) and [`tools/chocolateyinstall.ps1`](tools/chocolateyinstall.ps1),
+   [`glabels-qt.nuspec`](glabels-qt.nuspec) and [`tools/chocolateyinstall.ps1`](tools/chocolateyinstall.ps1),
    and the URL, checksum and commit in [`tools/VERIFICATION.txt`](tools/VERIFICATION.txt).
    The checksum is published as `SHA256SUMS.txt` on every release.
 2. Push, which runs [`chocolatey.yml`](../.github/workflows/chocolatey.yml). It packs the

@@ -39,7 +39,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\dist" | Out-Null
-          choco pack glabels.nuspec --out "$env:GITHUB_WORKSPACE\dist"
+          choco pack glabels-qt.nuspec --out "$env:GITHUB_WORKSPACE\dist"
           if ($LASTEXITCODE -ne 0) { throw "choco pack failed" }
           Get-ChildItem "$env:GITHUB_WORKSPACE\dist"
 
@@ -49,7 +49,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           # Local source only, so this can only succeed with the package we just
           # built - never with something already on the community repository.
-          choco install glabels --source "$env:GITHUB_WORKSPACE\dist" -y --no-progress
+          choco install glabels-qt --source "$env:GITHUB_WORKSPACE\dist" -y --no-progress
           if ($LASTEXITCODE -ne 0) { throw "choco install failed" }
 
       - name: Verify the installation
@@ -84,7 +84,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           # Exercises tools/chocolateyuninstall.ps1, not just the auto-uninstaller.
-          choco uninstall glabels -y --no-progress
+          choco uninstall glabels-qt -y --no-progress
           if ($LASTEXITCODE -ne 0) { throw "choco uninstall failed" }
 
           $left = @(

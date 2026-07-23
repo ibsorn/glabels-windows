@@ -55,14 +55,14 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\dist" | Out-Null
-          choco pack glabels.nuspec --out "$env:GITHUB_WORKSPACE\dist"
+          choco pack glabels-qt.nuspec --out "$env:GITHUB_WORKSPACE\dist"
           if ($LASTEXITCODE -ne 0) { throw "choco pack failed" }
 
       - name: Install, verify and uninstall before publishing
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          choco install glabels --source "$env:GITHUB_WORKSPACE\dist" -y --no-progress
+          choco install glabels-qt --source "$env:GITHUB_WORKSPACE\dist" -y --no-progress
           if ($LASTEXITCODE -ne 0) { throw "choco install failed - not publishing" }
 
           $key = @(
@@ -81,7 +81,7 @@ jobs:
             if (-not (Test-Path (Join-Path $instDir $rel))) { throw "missing $rel - not publishing" }
           }
 
-          choco uninstall glabels -y --no-progress
+          choco uninstall glabels-qt -y --no-progress
           if ($LASTEXITCODE -ne 0) { throw "choco uninstall failed - not publishing" }
           Write-Host "Package verified; proceeding to push."
 
@@ -98,4 +98,4 @@ jobs:
           choco push $pkg --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
           if ($LASTEXITCODE -ne 0) { throw "choco push failed" }
           Write-Host "Pushed. The package now goes through Chocolatey's moderation queue:"
-          Write-Host "  https://community.chocolatey.org/packages/glabels"
+          Write-Host "  https://community.chocolatey.org/packages/glabels-qt"

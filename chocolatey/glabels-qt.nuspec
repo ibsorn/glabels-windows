@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
-    <id>glabels</id>
+    <!--
+      Not "glabels": that id is already held by an abandoned 2020 package whose
+      only version was rejected, and pushing to an id owned by someone else
+      returns 403.  "glabels-qt" matches the upstream project's own name.
+    -->
+    <id>glabels-qt</id>
     <version>3.99.639</version>
     <packageSourceUrl>https://github.com/ibsorn/glabels-windows/tree/main/chocolatey</packageSourceUrl>
     <owners>ibsorn</owners>
 
-    <title>gLabels</title>
+    <title>gLabels 4</title>
     <authors>Jaye Evins and the gLabels contributors</authors>
     <projectUrl>https://glabels.org</projectUrl>
     <projectSourceUrl>https://github.com/j-evins/glabels-qt</projectSourceUrl>
@@ -31,6 +36,10 @@ libqrencode. A command line renderer, `glabels-batch-qt`, produces PDFs without 
 interface.
 
 ## About this package
+
+Note on the name: the `glabels` package id belongs to an unrelated 2020 submission that
+was never approved and has been dormant since. This package is published as `glabels-qt`,
+matching the upstream project's own name.
 
 This is an **unofficial community build**. gLabels 4 (`glabels-qt`) is cross-platform and
 builds cleanly on Windows, but the project publishes no Windows binaries, so this package
