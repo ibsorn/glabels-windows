@@ -33,7 +33,7 @@ permissions:
   contents: write
 
 env:
-  UPSTREAM_REPO: jimevins/glabels-qt
+  UPSTREAM_REPO: j-evins/glabels-qt
   QT_VERSION: '6.8.3'
   QT_ARCH: win64_msvc2022_64
   VCPKG_TRIPLET: x64-windows-static-md

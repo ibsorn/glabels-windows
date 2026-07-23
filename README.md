@@ -2,7 +2,7 @@
 
 # gLabels 4 for Windows
 
-**Ready-to-run Windows builds of [gLabels 4](https://github.com/jimevins/glabels-qt) — the free label and business-card designer.**
+**Ready-to-run Windows builds of [gLabels 4](https://github.com/j-evins/glabels-qt) — the free label and business-card designer.**
 
 [![Build gLabels for Windows](https://github.com/ibsorn/glabels-windows/actions/workflows/build-windows.yml/badge.svg)](https://github.com/ibsorn/glabels-windows/actions/workflows/build-windows.yml)
 [![Latest release](https://img.shields.io/github/v/release/ibsorn/glabels-windows?label=latest%20build)](https://github.com/ibsorn/glabels-windows/releases/latest)
@@ -86,7 +86,7 @@ can point it at any upstream branch, tag or commit, and optionally have it publi
 release in your own fork. Nothing besides a GitHub account is required.
 
 Locally, follow the
-[upstream Windows build instructions](https://github.com/jimevins/glabels-qt/blob/master/docs/BUILD-INSTRUCTIONS-WINDOWS.md).
+[upstream Windows build instructions](https://github.com/j-evins/glabels-qt/blob/master/docs/BUILD-INSTRUCTIONS-WINDOWS.md).
 
 Note that the *process* is reproducible, not the bytes: MSVC and NSIS embed timestamps, so
 rebuilding the same commit gives you a working, equivalent binary with a different SHA-256.
@@ -100,7 +100,7 @@ in [`packaging/`](packaging/). No gLabels source code is modified beyond those p
 ## Bugs
 
 * **Something wrong with the installer, packaging, or a missing DLL** → [open an issue here](https://github.com/ibsorn/glabels-windows/issues).
-* **Something wrong with gLabels itself** → report it [upstream](https://github.com/jimevins/glabels-qt/issues), where the people who can fix it are.
+* **Something wrong with gLabels itself** → report it [upstream](https://github.com/j-evins/glabels-qt/issues), where the people who can fix it are.
 
 ## Credits and licence
 
