@@ -38,6 +38,15 @@ Grab the files from the [**latest release**](https://github.com/ibsorn/glabels-w
 
 **Requirements:** 64-bit Windows 10 or 11. Nothing else — Qt and the C runtime are bundled.
 
+### Package managers
+
+Submissions are in review — these will work once the pull requests below are merged, not before:
+
+| | | |
+|:--|:--|:--|
+| winget | `winget install ibsorn.gLabels` | [winget-pkgs#406476](https://github.com/microsoft/winget-pkgs/pull/406476) |
+| Scoop | `scoop install extras/glabels` | [Extras#18371](https://github.com/ScoopInstaller/Extras/pull/18371) |
+
 <details>
 <summary>Verifying a download</summary>
 
