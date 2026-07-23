@@ -23,14 +23,23 @@ So `authors` credits the gLabels authors and `owners` is the packager. There is 
 2. Push, which runs [`chocolatey.yml`](../.github/workflows/chocolatey.yml). It packs the
    package, installs it from a local source on a clean runner, checks the registry entry and
    the installed tree, and uninstalls again. A red run means do not publish.
-3. Download the `chocolatey-package` artifact from that run and upload the `.nupkg` at
-   <https://push.chocolatey.org/>, or `choco push <file>.nupkg --source https://push.chocolatey.org/`
-   with your API key.
-4. Expect moderation. New packages are reviewed by a human and the first submission of a
-   package usually gets comments.
+3. Run the **Publish to Chocolatey** workflow and type `PUBLISH` in the confirm field. It
+   re-packs, re-runs the install/verify/uninstall test, and only then pushes.
+4. Expect moderation. New packages are reviewed by a human and a package's first submission
+   usually gets comments.
 
-Pushing is not automated: it needs an API key that should not live in this repository's
-secrets for a package that is moderated anyway.
+Uploading a `.nupkg` through the website **is no longer supported** — the repository
+retired it in favour of `choco push`, which is why publishing goes through the workflow.
+That needs a repository secret:
+
+| | |
+|:--|:--|
+| Secret | `CHOCO_API_KEY` |
+| Where to get it | <https://community.chocolatey.org/account> |
+| Where to put it | Settings → Secrets and variables → Actions → New repository secret |
+
+Publishing is a separate, manual workflow rather than part of the build because a version
+number, once pushed, can never be reused — even if the package is later unlisted.
 
 ## Things that will silently break
 

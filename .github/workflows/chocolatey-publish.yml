@@ -1,0 +1,101 @@
+name: Publish to Chocolatey
+
+# Pushes the Chocolatey package to the Community Repository.
+#
+# Separate from chocolatey.yml on purpose: that one packs and tests on every
+# change, this one publishes, and publishing is irreversible-ish (a pushed
+# version number can never be reused, even if the package is later unlisted).
+# So it is manual only, and it re-runs the full install test before pushing --
+# there is no path here that publishes something untested.
+#
+# Requires a repository secret named CHOCO_API_KEY:
+#   Settings -> Secrets and variables -> Actions -> New repository secret
+# Get the key from https://community.chocolatey.org/account
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type PUBLISH to confirm pushing to the public repository'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Test and push
+    runs-on: windows-2022
+
+    steps:
+      - name: Check the confirmation
+        shell: pwsh
+        run: |
+          if ('${{ github.event.inputs.confirm }}' -cne 'PUBLISH') {
+            throw "Refusing to publish: type PUBLISH in the confirm field to proceed."
+          }
+
+      - name: Check the API key is configured
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CHOCO_API_KEY)) {
+            throw "The CHOCO_API_KEY secret is not set on this repository."
+          }
+          Write-Host "API key present ($($env:CHOCO_API_KEY.Length) characters)."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pack
+        shell: pwsh
+        working-directory: chocolatey
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\dist" | Out-Null
+          choco pack glabels.nuspec --out "$env:GITHUB_WORKSPACE\dist"
+          if ($LASTEXITCODE -ne 0) { throw "choco pack failed" }
+
+      - name: Install, verify and uninstall before publishing
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install glabels --source "$env:GITHUB_WORKSPACE\dist" -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco install failed - not publishing" }
+
+          $key = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4'
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $key) { throw "not registered in the uninstall registry - not publishing" }
+
+          $props = Get-ItemProperty $key
+          if ($props.DisplayName -notlike 'gLabels 4*') {
+            throw "DisplayName '$($props.DisplayName)' no longer matches softwareName 'gLabels 4*'"
+          }
+          $instDir = Split-Path $props.UninstallString.Trim('"')
+          foreach ($rel in 'bin\glabels-qt.exe', 'bin\glabels-batch-qt.exe',
+                           'share\glabels-qt\templates\categories.xml') {
+            if (-not (Test-Path (Join-Path $instDir $rel))) { throw "missing $rel - not publishing" }
+          }
+
+          choco uninstall glabels -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco uninstall failed - not publishing" }
+          Write-Host "Package verified; proceeding to push."
+
+      - name: Push
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = (Get-ChildItem "$env:GITHUB_WORKSPACE\dist\*.nupkg")[0].FullName
+          Write-Host "Pushing $(Split-Path $pkg -Leaf)"
+          # --api-key is passed per-invocation rather than stored with
+          # `choco apikey`, so nothing is left behind in the runner's config.
+          choco push $pkg --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+          if ($LASTEXITCODE -ne 0) { throw "choco push failed" }
+          Write-Host "Pushed. The package now goes through Chocolatey's moderation queue:"
+          Write-Host "  https://community.chocolatey.org/packages/glabels"
