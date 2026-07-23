@@ -44,8 +44,8 @@ Grab the files from the [**latest release**](https://github.com/ibsorn/glabels-w
 [winget-pkgs#406476](https://github.com/microsoft/winget-pkgs/pull/406476). Once merged,
 `winget install ibsorn.gLabels` will work. Not before.
 
-**Chocolatey** — [packaged and tested](chocolatey/), awaiting upload and moderation. Once
-accepted, `choco install glabels-qt` will work.
+**Chocolatey** — [submitted](https://community.chocolatey.org/packages/glabels-qt) as
+`glabels-qt`, in moderation. Once approved, `choco install glabels-qt` will work.
 
 **Scoop** — [not eligible yet](scoop/). The Extras bucket requires the *latest stable
 version* of a package, and gLabels 4 has no stable release. The manifest is written and
