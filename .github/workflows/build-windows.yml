@@ -271,6 +271,51 @@ jobs:
           Get-ChildItem dist | Format-Table Name, Length
           Get-Content dist\SHA256SUMS.txt
 
+      - name: Verify the installer end to end
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Get-ChildItem dist\*-setup.exe)[0].FullName
+          Write-Host "Installing $setup silently..."
+          $p = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exited with $($p.ExitCode)" }
+
+          # 'gLabels 4' is CPACK_PACKAGE_INSTALL_REGISTRY_KEY, and it is what
+          # winget records as the ProductCode - so it has to be what actually
+          # lands in the registry, in whichever view NSIS wrote it to.
+          $key = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4'
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $key) { throw "no uninstall entry named 'gLabels 4' was created" }
+
+          $props = Get-ItemProperty $key
+          Write-Host "registry key    : $key"
+          Write-Host "DisplayName     : $($props.DisplayName)"
+          Write-Host "DisplayVersion  : $($props.DisplayVersion)"
+          Write-Host "Publisher       : $($props.Publisher)"
+          Write-Host "UninstallString : $($props.UninstallString)"
+          if ($props.DisplayVersion -ne $env:GLABELS_VERSION) {
+            throw "DisplayVersion '$($props.DisplayVersion)' != '$env:GLABELS_VERSION'"
+          }
+
+          $uninstaller = $props.UninstallString.Trim('"')
+          $instDir = Split-Path $uninstaller
+          Write-Host "installed to    : $instDir"
+          foreach ($rel in 'bin\glabels-qt.exe', 'bin\glabels-batch-qt.exe',
+                           'share\glabels-qt\templates\categories.xml') {
+            if (-not (Test-Path (Join-Path $instDir $rel))) {
+              throw "installed tree is missing $rel"
+            }
+          }
+
+          # Leave the runner clean, and prove the uninstaller works while we are
+          # here.  "_?=" makes NSIS run the uninstaller synchronously.
+          Start-Process -FilePath $uninstaller -ArgumentList '/S', "_?=$instDir" -Wait
+          for ($i = 0; $i -lt 10 -and (Test-Path $key); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $key) { throw "uninstall left the registry entry behind" }
+          Write-Host "install / uninstall cycle OK"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
