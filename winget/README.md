@@ -15,6 +15,19 @@ open a pull request.
 | `PackageVersion` | Normalised to `3.99.<commit-count>` so winget can order versions. The snapshot string upstream uses (`3.99-master639`) is recorded as `AppsAndFeaturesEntries.DisplayVersion` instead. |
 | `ProductCode` | `gLabels 4` — the uninstall registry subkey, which is `CPACK_PACKAGE_INSTALL_REGISTRY_KEY`. **Do not change it between versions**; winget correlates installed packages on it, so changing it would orphan every existing installation. |
 
+### The uninstall entry lives in the 32-bit registry view
+
+NSIS installers run as a 32-bit process, and CPack's template does not call
+`SetRegView 64`, so the entry lands under `HKLM\SOFTWARE\WOW6432Node\...\Uninstall\gLabels 4`
+even though the application itself is 64-bit and installs to `C:\Program Files`.
+
+This is deliberate — leave it alone. winget reads both registry views, so correlation works,
+and moving the entry to the 64-bit view later would orphan every existing installation for
+exactly the same reason changing the `ProductCode` would. There is also no CPack variable
+for it: forcing `SetRegView` through `CPACK_NSIS_EXTRA_INSTALL_COMMANDS` would only affect
+our own extra commands and would split the keys across both views, which is worse than
+having them consistently in one.
+
 ## Validating before submitting
 
 `validate.py` checks each manifest against the official JSON schema and cross-checks the
