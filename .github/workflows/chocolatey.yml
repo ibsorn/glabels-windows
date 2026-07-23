@@ -1,0 +1,102 @@
+name: Chocolatey package
+
+# Builds the Chocolatey package and, more importantly, proves it works: the
+# package is installed from a local source on a clean runner, checked, and
+# uninstalled again.  The .nupkg is only worth pushing if that passes.
+#
+# Pushing to the community repository is deliberately NOT automated here - it
+# needs an API key, and the package is moderated, so it is a human decision.
+# Download the artifact from a green run and upload it at
+# https://push.chocolatey.org/ (or `choco push` with your own key).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'chocolatey/**'
+      - '.github/workflows/chocolatey.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack and test
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Chocolatey version
+        shell: pwsh
+        run: choco --version
+
+      - name: Pack
+        shell: pwsh
+        working-directory: chocolatey
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\dist" | Out-Null
+          choco pack glabels.nuspec --out "$env:GITHUB_WORKSPACE\dist"
+          if ($LASTEXITCODE -ne 0) { throw "choco pack failed" }
+          Get-ChildItem "$env:GITHUB_WORKSPACE\dist"
+
+      - name: Install from the packed .nupkg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Local source only, so this can only succeed with the package we just
+          # built - never with something already on the community repository.
+          choco install glabels --source "$env:GITHUB_WORKSPACE\dist" -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco install failed" }
+
+      - name: Verify the installation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $key = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4'
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $key) { throw "gLabels was not registered in the uninstall registry" }
+
+          $props = Get-ItemProperty $key
+          Write-Host "DisplayName    : $($props.DisplayName)"
+          Write-Host "DisplayVersion : $($props.DisplayVersion)"
+
+          # softwareName in chocolateyinstall.ps1 is 'gLabels 4*'; if the display
+          # name ever stops matching it, the auto-uninstaller breaks silently.
+          if ($props.DisplayName -notlike 'gLabels 4*') {
+            throw "DisplayName '$($props.DisplayName)' no longer matches the softwareName pattern 'gLabels 4*'"
+          }
+
+          $instDir = Split-Path $props.UninstallString.Trim('"')
+          foreach ($rel in 'bin\glabels-qt.exe', 'bin\glabels-batch-qt.exe',
+                           'share\glabels-qt\templates\categories.xml') {
+            if (-not (Test-Path (Join-Path $instDir $rel))) { throw "missing $rel" }
+          }
+          Write-Host "installed to   : $instDir"
+
+      - name: Uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Exercises tools/chocolateyuninstall.ps1, not just the auto-uninstaller.
+          choco uninstall glabels -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco uninstall failed" }
+
+          $left = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\gLabels 4'
+          ) | Where-Object { Test-Path $_ }
+          if ($left) { throw "uninstall left the registry entry behind: $left" }
+          Write-Host "install / uninstall cycle OK"
+
+      - name: Upload .nupkg
+        uses: actions/upload-artifact@v4
+        with:
+          name: chocolatey-package
+          path: dist/*.nupkg
+          if-no-files-found: error

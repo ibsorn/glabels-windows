@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>glabels</id>
+    <version>3.99.639</version>
+    <packageSourceUrl>https://github.com/ibsorn/glabels-windows/tree/main/chocolatey</packageSourceUrl>
+    <owners>ibsorn</owners>
+
+    <title>gLabels</title>
+    <authors>Jaye Evins and the gLabels contributors</authors>
+    <projectUrl>https://glabels.org</projectUrl>
+    <projectSourceUrl>https://github.com/j-evins/glabels-qt</projectSourceUrl>
+    <docsUrl>https://github.com/j-evins/glabels-qt/blob/master/docs/BUILD-INSTRUCTIONS-WINDOWS.md</docsUrl>
+    <bugTrackerUrl>https://github.com/ibsorn/glabels-windows/issues</bugTrackerUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/j-evins/glabels-qt@ec711bd0e611a779cbf1a1cca8457485ca015d20/glabels/icons/glabels-flat/scalable/apps/glabels.svg</iconUrl>
+    <copyright>Copyright (C) Jaye Evins and contributors</copyright>
+    <licenseUrl>https://github.com/j-evins/glabels-qt/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags>glabels labels barcode label-printing business-cards avery qrcode printing foss cross-platform admin</tags>
+
+    <summary>Designer for labels, business cards and barcodes (unofficial Windows build of gLabels 4)</summary>
+    <description><![CDATA[
+gLabels is a program for creating labels and business cards. It is designed to work with the
+sheets of peel-off labels and card stock sold in office supply shops, and ships a template
+database covering more than thirty vendors including Avery, Herma, Zweckform and Dymo.
+
+Text, images, lines, shapes and barcodes can be placed on a label, and a document-merge
+feature fills them from a CSV file or address book, so a whole sheet can be personalised in
+one pass. Barcode support covers the built-in glbarcode++ symbologies plus zint and
+libqrencode. A command line renderer, `glabels-batch-qt`, produces PDFs without opening the
+interface.
+
+## About this package
+
+This is an **unofficial community build**. gLabels 4 (`glabels-qt`) is cross-platform and
+builds cleanly on Windows, but the project publishes no Windows binaries, so this package
+installs a build compiled from unmodified upstream sources by a public GitHub Actions
+workflow:
+
+* Build automation and full logs: https://github.com/ibsorn/glabels-windows
+* Upstream project: https://github.com/j-evins/glabels-qt
+
+It is not produced or endorsed by the gLabels authors. Please report **application** bugs to
+the upstream tracker and **packaging** problems to the tracker linked above.
+
+## Status
+
+gLabels 4 has no final release yet, so this packages a snapshot of upstream's `master`
+branch. It is usable, but treat it as pre-release software and keep backups of your projects.
+Every build runs the upstream unit tests, renders a PDF from the packaged tree, and installs
+and uninstalls itself on a clean machine before it is published.
+]]></description>
+    <releaseNotes>https://github.com/ibsorn/glabels-windows/releases/tag/win-3.99-master639</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

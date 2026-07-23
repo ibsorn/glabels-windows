@@ -1,0 +1,44 @@
+VERIFICATION
+------------
+
+This package embeds no binaries. `chocolateyinstall.ps1` downloads the installer at
+install time and Chocolatey verifies it against the SHA-256 checksum in that script
+before running it.
+
+Package version 3.99.639 installs:
+
+  https://github.com/ibsorn/glabels-windows/releases/download/win-3.99-master639/gLabels-3.99-master639-win64-setup.exe
+  sha256: 670B329289E21A468199262591342EDCAE24E0B8770912CCABA9160E8CC4CA3A
+
+To verify that checksum yourself:
+
+  Invoke-WebRequest -Uri <url above> -OutFile setup.exe
+  Get-FileHash setup.exe -Algorithm SHA256
+
+The same sum is published as `SHA256SUMS.txt` on the release itself:
+
+  https://github.com/ibsorn/glabels-windows/releases/tag/win-3.99-master639
+
+
+PROVENANCE
+----------
+
+gLabels is free software by Jaye Evins and contributors, licensed under the GNU General
+Public License v3 or later:
+
+  https://github.com/j-evins/glabels-qt/blob/master/LICENSE
+
+Upstream publishes no Windows binaries. The installer above is built from unmodified
+upstream sources by a public GitHub Actions workflow, which is the only build automation
+in the packaging repository:
+
+  https://github.com/ibsorn/glabels-windows/blob/main/.github/workflows/build-windows.yml
+
+The corresponding source is upstream commit ec711bd of https://github.com/j-evins/glabels-qt,
+plus the patches recorded in https://github.com/ibsorn/glabels-windows/tree/main/patches.
+Each build's full log, including every compiler invocation, is public under the Actions tab.
+
+This is an unofficial community build, not endorsed by or affiliated with the gLabels
+project. Upstream has been notified that it exists:
+
+  https://github.com/j-evins/glabels-qt/issues/31#issuecomment-5055774938
