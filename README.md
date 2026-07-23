@@ -40,12 +40,13 @@ Grab the files from the [**latest release**](https://github.com/ibsorn/glabels-w
 
 ### Package managers
 
-Submissions are in review — these will work once the pull requests below are merged, not before:
+**winget** — submitted as `ibsorn.gLabels`, in review at
+[winget-pkgs#406476](https://github.com/microsoft/winget-pkgs/pull/406476). Once merged,
+`winget install ibsorn.gLabels` will work. Not before.
 
-| | | |
-|:--|:--|:--|
-| winget | `winget install ibsorn.gLabels` | [winget-pkgs#406476](https://github.com/microsoft/winget-pkgs/pull/406476) |
-| Scoop | `scoop install extras/glabels` | [Extras#18371](https://github.com/ScoopInstaller/Extras/pull/18371) |
+**Scoop** — [not eligible yet](scoop/). The Extras bucket requires the *latest stable
+version* of a package, and gLabels 4 has no stable release. The manifest is written and
+ready in [`scoop/`](scoop/) for the day upstream tags 4.0.
 
 <details>
 <summary>Verifying a download</summary>
